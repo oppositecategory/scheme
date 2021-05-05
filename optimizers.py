@@ -22,6 +22,7 @@ class VanillaOptimizer:
 
 class MomentumOptimizer(VanillaOptimizer):
     """ Implements Momentum method.
+        Momentum accelerates SGD in the direction with most curvature and dampens oscilations. 
     """
     def __init__(self,mu=0.5,reg=1e-3,step_size=1e-1):
         super().__init__(reg,step_size)

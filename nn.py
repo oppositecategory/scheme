@@ -27,7 +27,7 @@ class NeuralNetwork:
     def __init__(self, sizes, iterations = 10000, f='ReLu', optimizer=optimizers.VanillaOptimizer(),debug_loss=False):
         self.sizes = sizes
         self.network, self.biases = self._initialize_network()
-        self.f= activations[f]
+        self.f, self.f_name = activations[f], f
         self.iterations = iterations
         self.optimizer = optimizer
         self.reg, self.step_size = self.optimizer.get_learning_params()['reg'],self.optimizer.get_learning_params()['step_size']
@@ -57,7 +57,7 @@ class NeuralNetwork:
         return out, temps
 
     def _gradient(self,output,X,y):
-        """ Compute gradient of cross-entropy loss """
+        """ Compute gradient of cross-entropy loss with respect to scores."""
         m = X.shape[0]
         grad = output
         grad[range(m),y] -= 1
@@ -65,7 +65,7 @@ class NeuralNetwork:
         return grad
 
     def _backpropagate(self, X,layers,grad):
-        """ Function implements backpropagation method: given the gradient variable it propogates the gradient backwards
+        """ Function implements backpropagation method: given the gradient with respect to scores it propogates the gradient backwards
             through the network by chain rule (basically multiplying) while applying ReLu derivative.
         """
         dWs = [] # gradients for weights
@@ -75,8 +75,11 @@ class NeuralNetwork:
             dWs.append(np.dot(layers[::-1][i].T, prev))
             dbs.append(np.sum(prev,axis=0,keepdims=True))
             dlayer = np.dot(prev, self.network[::-1][i].T)
-            dlayer[layers[::-1][i] <= 0] = 0 # The derivative of ReLu
-            prev = dlayer
+            if self.f_name == 'ReLu':
+                dlayer[layers[::-1][i] <= 0] = 0 # The derivative of ReLu
+            else:
+                dlayer = self.f(dlayer) * (1- self.f(dlayer)) # Derivative of sigmoid. NOTE: It can cause vanished gradients.
+            prev = dlayer 
         dWs.append(np.dot(X.T,prev))
         dbs.append(np.sum(prev,axis=0,keepdims=True))
         return dWs, dbs
@@ -112,7 +115,7 @@ class NeuralNetwork:
                 self.biases[i] = self.biases[i] - self.step_size * dbs[::-1][i]
         
         if plot:
-            epochs = np.linspace(0,9000,100)
+            epochs = np.linspace(0,self.iterations,100)
             plt.plot(epochs,ls)
             plt.title('Accuracy vs epochs')
             plt.show()
