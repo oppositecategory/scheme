@@ -66,7 +66,7 @@ class NeuralNetwork:
 
     def _backpropagate(self, X,layers,grad):
         """ Function implements backpropagation method: given the gradient with respect to scores it propogates the gradient backwards
-            through the network by chain rule (basically multiplying) while applying ReLu derivative.
+            through the network by chain rule (basically multiplying) while applying the non-linearity derivative.
         """
         dWs = [] # gradients for weights
         dbs = [] # gradients for biases 
