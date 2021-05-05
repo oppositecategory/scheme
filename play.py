@@ -21,7 +21,6 @@ for j in range(K):
 
 sizes = [2,100,3]
 network = nn.NeuralNetwork(sizes, optimizer = optimizers.RMSpropOptimizer(decay_rate=0.9,step_size=1e-3),debug_loss=True)
-#network = nn.NeuralNetwork(sizes, optimizer = optimizers.VanillaOptimizer(),f='sigmoid',debug_loss=True)
 network.fit(X,y,True)
 
 

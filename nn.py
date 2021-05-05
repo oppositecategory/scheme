@@ -78,7 +78,7 @@ class NeuralNetwork:
             if self.f_name == 'ReLu':
                 dlayer[layers[::-1][i] <= 0] = 0 # The derivative of ReLu
             else:
-                dlayer = self.f(dlayer) * (1- self.f(dlayer)) # Derivative of sigmoid. NOTE: It can cause vanished gradients.
+                dlayer = self.f(dlayer) * (1- self.f(dlayer)) # Derivative of sigmoid. NOTE: It can cause exploding gradients.
             prev = dlayer 
         dWs.append(np.dot(X.T,prev))
         dbs.append(np.sum(prev,axis=0,keepdims=True))
