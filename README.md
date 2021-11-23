@@ -4,7 +4,7 @@ Scheme is a small neural networks library written **purely** in NumPy for educat
 Why the name scheme? I like the concept of scheme from Algebraic Geometry that's why. 
 
 Current models implemented:
-- Simple layer neural network architecture
+- N-layer neural network architecture
 - Convolutional neural network 
 
 To do:
