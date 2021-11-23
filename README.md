@@ -1,6 +1,14 @@
 # scheme
 
-Scheme is a tiny neural networks library I wrote for educational purposes while building intuition for hyperparameters. 
+Scheme is a small neural networks library written **purely** in NumPy for educational purpose. It's written with readability in mind.
+Why the name scheme? I like the concept of scheme from Algebraic Geometry that's why. 
 
-It's capable to build and train a n-layer neural network with given number of neurons for each input. 
-It includes as of now classical gradient descent, Momentum and RMSprop. I intend to update it and add features.
+Current models implemented:
+- Simple layer neural network architecture
+- Convolutional neural network 
+
+To do:
+- LSTM
+- RNN
+- Autoencoders 
+- Generative Adversial Networks
