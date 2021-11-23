@@ -56,7 +56,7 @@ class NeuralNetwork:
         out = np.dot(out,self.network[-1]) + self.biases[-1]
         return out, temps
 
-    def _gradient(self,output,X,y):
+    def cross_entropy_gradient(self,output,X,y):
         """ Compute gradient of cross-entropy loss with respect to scores."""
         m = X.shape[0]
         grad = output
@@ -105,7 +105,7 @@ class NeuralNetwork:
             if i % (self.iterations/100) == 0:
                 ls.append(loss)
             # Gradient of cross-entropy loss.
-            grad = self._gradient(probs,X,y)
+            grad = self.cross_entropy_gradient(probs,X,y)
 
             dWs, dbs = self._backpropagate(X,layers,grad)
 
