@@ -1,6 +1,5 @@
 import numpy as np
-import nn
-import optimizers
+from scheme import nn, optimizers
 
 
 step_sizes = [1e-0,1e-1,1e-2,1e-3,1e-4,1e-5]

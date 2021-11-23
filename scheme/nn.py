@@ -1,7 +1,8 @@
+from math import sqrt
 import numpy as np 
 import matplotlib.pyplot as plt
-import optimizers
-from math import sqrt
+
+from optimizers import VanillaOptimizer, MomentumOptimizer, RMSpropOptimizer 
 
 activations = {'ReLu':lambda x: np.maximum(0,x),'sigmoid':lambda x: 1.0/(1.0 + np.exp(-x)) }
 np.random.seed(0)
@@ -13,18 +14,23 @@ TODO:
 - Add metrics and visualization.
 """
 class NeuralNetwork:
-    """
-    Implements a Neural Network.
-    Args:
-        - sizes: A list containing number of neurons for each layer (including input and output    layer).
-        - iterations: Number of epochs for the neural to train.
-        - reg: L2 Regulaizer term for avoiding overfitting. Defaults to 1e-3.
-        - step_size: The learning rate for the neural network.
-        - f: Activation function for neurons.
-        - optimizer: Optimization algorithm. NOTE: It encapsulates the REGULAIZER term and LEARNING RATE.
-        - debug_loss: Boolean flag to show improvements during learning or no.
-    """
-    def __init__(self, sizes, iterations = 10000, f='ReLu', optimizer=optimizers.VanillaOptimizer(),debug_loss=False):
+    def __init__(self, 
+                 sizes, 
+                 iterations = 10000, 
+                 f='ReLu', 
+                 optimizer=optimizers.VanillaOptimizer(),
+                 debug_loss=False):
+        """
+        Implements a Neural Network.
+        Args:
+            - sizes: A list containing number of neurons for each layer (including input and output    layer).
+            - iterations: Number of epochs for the neural to train.
+            - reg: L2 Regulaizer term for avoiding overfitting. Defaults to 1e-3.
+            - step_size: The learning rate for the neural network.
+            - f: Activation function for neurons.
+            - optimizer: Optimization algorithm. NOTE: It encapsulates the REGULAIZER term and LEARNING RATE.
+            - debug_loss: Boolean flag to show improvements during learning or no.
+        """
         self.sizes = sizes
         self.network, self.biases = self._initialize_network()
         self.f, self.f_name = activations[f], f
@@ -109,10 +115,16 @@ class NeuralNetwork:
 
             dWs, dbs = self._backpropagate(X,layers,grad)
 
+            self.network, self.biases = self.optimizer.optimize(dWs, 
+                                                                dbs, 
+                                                                self.network, 
+                                                                self.biases)
+            """
             for i,dw in enumerate(dWs[::-1]):
                 dw = dw + self.reg * dw
                 self.network[i] = self.network[i] - self.step_size * dw
                 self.biases[i] = self.biases[i] - self.step_size * dbs[::-1][i]
+            """
         
         if plot:
             epochs = np.linspace(0,self.iterations,100)
