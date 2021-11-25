@@ -2,22 +2,22 @@ import numpy as np
 
 class ConvLayer:
   def __init__(self, 
-               params : list, 
+               params, 
                vect_flag = True):
     """
     Implements simple ReLu Convolutional layer.
 
     Args:
       params: ndarray of the filters parameters. Each entry in params is a 3-tuple (F,S,P).
-                 F - The dimension of the array. For example F = 5 means a filter of size 
-                 5x5xD(=input.shape[2]).
-                 S - Stride. How to "slide" the kernel across the image. 
-                 P - The length of the padding applied to the image.
+              F - The dimension of the array. For example F = 5 means a filter of size 
+                     5x5xD .
+              S - Stride. How to "slide" the kernel across the image. 
+              P - The length of the padding applied to the image.
       vect_flag: A boolean flag indicating for a vectorized ConvLayer meaning we have a stack of
-                   N filters to be learned with same dimension and stride to be transformed into
-                   matrix operation. vect_flag defaults to True to have a more compact and efficient 
-                   implementation.
-                   NOTE: If vect_flag == True we expect params to be of the form [(F,S),K].
+                 N filters to be learned with same dimension and stride to be transformed into
+                 matrix operation. vect_flag defaults to True to have a more compact and efficient 
+                 implementation.
+                 NOTE: If vect_flag == True we expect params to be of the form [(F,S),K].
     """
     self.vect_flag = vect_flag 
 
@@ -29,7 +29,7 @@ class ConvLayer:
       self.K = len(params)
 
     self.D = None # We must have the depth dimension for the filters.
-    self.filters = None
+    self.filters = None # K filters each of size FxFxD, which act as the weights of the CNN
     self.cache_gradient = None
   
   def set_depth(self, D):
@@ -47,6 +47,8 @@ class ConvLayer:
         filters.append(np.random.normal(size=(F,F,self.D)))
     return np.array(filters)
 
+  def expose_weights(self):
+    return np.array([w.flatten() for w in self.filters])
 
   def convolve(self, X, kernel, stride,padding):
     """ Naive multi-dimensional convolutiion implementation. 
@@ -83,13 +85,12 @@ class ConvLayer:
 
     output = []
     for i,(F,S,P) in enumerate(self.params):
-      activation_map = ConvLayer.convolve(X=self.X,
+      activation_map = self.convolve(X=self.X,
                                           kernel=filters[i],
                                           stride=S,
                                           padding=P)
       output.append(activation_map)
     
-    # Apply ReLu on the activation map
     output = np.array(output)
     output[output < 0] = 0
     return  output
@@ -149,11 +150,11 @@ class MaxPoolingLayer:
     """
     self.F = F
     self.S = S
-
     self.cache_gradient = None 
   
   def feed_forward(self,X):
     W, H, D = X.shape 
+
 
     W1 = (W - self.F)/self.S + 1 
     H1 = (H - self.F)/self.S + 1
@@ -165,18 +166,67 @@ class MaxPoolingLayer:
 
     W1, H1 = int(W1), int(H1)
     downsample = np.zeros((W1,H1,D))
-    self.cache_gradient = np.zeros((W1,H1,D),dtype=np.int8)
+    # We will create a matrix mask so we will keep track of only indices which are maximal 
+    # in their local regions.
+    self.gradient_cache = np.zeros((W1,H1,D),dtype=np.int8)
 
     for depth in range(D):
       for i in range(W1):
         for j in range(H1):
-          self.cache_gradient[i,j,depth] = np.argmax(X[(i*self.S):(self.F+i*self.S), :self.F,depth])
+          index = np.argmax(X[(i*self.S):(self.F+i*self.S), :self.F,depth])
+          i1, j1 = index // self.F , j1 % self.F 
+          # Raise a flag in the indices of the max value
+          self.gradient_cache[(i*self.S) + i1,j1,depth] = 1 
           downsample[i,j,depth] = np.max(X[(i*self.S):(self.F+i*self.S), :self.F,depth])
     return downsample
 
+  def propagate_backwards(self, output):
+    output[self.gradient_cache == 0] = 0
+    return output 
 
+  
+class FullyConnected:
+  def __init__(self, input_shape, num_neurons=4096):
+    """ Implements a fully connected layer. 
+    """
+    self.num_neurons = num_neurons 
+    self.input_shape = input_shape 
+
+    (W, H, D) = self.input_shape
+    self.weights = np.random.normal(size=(self.num_neurons, W*H*D)) / np.sqrt(2.0/(W*H*D))
+    self.gradient_cache = None
+  
+  def expose_weights(self):
+    return self.weights
+
+  def feed_forward(self, X):
+    X = X.flatten()
+    # Each row in weights corresponds to all the weights of a specific neuron and thus 
+    # each entry in the matrix multiplication weights @ X stands for a dot product
+    # (w_i * x_i) where x_i is a neuron in the input and eventually ontop of the dot-product 
+    # we compose as a non-linearity the ReLu.
+    activations = np.dot(self.weights, X)
+    self.gradient_cache = np.where(activations < 0)
+    activations[activations < 0] = 0
+    return activations
+
+  def propagate_backwards(self, output):
+    dlayer = np.dot(prev, self.weights.T) 
+    dactivation = dlayer
+    dactivation[sel.gradient_cache] = 0
+    return dactivation, dlayer 
+
+def cross_entropy_gradient(output, y, m):
+  grad = output 
+  grad[range(m), y] -= 1 
+  grad /= m
+  return grad
+  
 class CNN:
-  def __init__(self, X, layers):
+  def __init__(self, 
+               layers,
+               iterations=1000, 
+               reg = 0.1):
     """
     Implements a Convolutional Neural Network.
 
@@ -184,11 +234,14 @@ class CNN:
       X: ndarray input for the CNN.
       layers: list of MaxPoolingLayers/ConvLayers.
     """
-    self.X = X
     self.layers = layers 
     self.N = len(self.layers) - 1
+    self.gradient_cache = []
 
-  def feed_forward(self):
+    self.iterations = iterations
+    self.reg = reg 
+
+  def feed_forward(self,X):
     output = X
     for layer in self.layers:
       if isinstance(layer, ConvLayer):
@@ -199,6 +252,51 @@ class CNN:
         layer.set_depth(output.shape[2])
       output = layer.feed_forward(output)
     return output
-  
-  def backpropagate(self):
-    pass 
+    
+  def backpropagate(self, X, output):
+    """
+    Perform backpropagation on the whole network. 
+
+    Args:
+      X : ndarray object which is input to the network
+      output: the derivative of the cross-entropy loss with respect to the scores.
+    
+    returns:
+      dWs = array of the gradients of the network with respect to each layer and it's weights.
+    """
+    dWs = []
+    prev = output 
+    for layer in self.layers[::-1]:
+      prev, grad_w = layer.propagate_backwards(prev)
+      dWs.append(grad_w)
+    dWs.append(np.dot(X.T,prev))
+    return dWs 
+
+  def aggregate_weights(self):
+    network = []
+    for layer in self.layers:
+      if isinstance(layer, ConvLayer) or isinstance(layer, FullyConnected):
+        network.append(layer.expose_weights())
+    return np.array(network)
+
+  def fit(self,X, y):
+    m = len(X)
+    for i in range(self.iterations):
+      scores = self.feed_forward(X)
+      network = self.aggregate_weights()
+
+      # We compute probabilities by applying SoftMax function on the output layer
+      exp_scores = np.exp(scores)
+      probs = exp_scores / np.sum(exp_scores,axis=1, keepdims=True)
+
+      # As a loss function we use cross entropy to make small probabilities assigned
+      # that was assigned to correct labels contribute more to the loss function.
+      correct_logprobs = - np.log(probs[range(m), y])
+      data_loss = np.sum(correct_logprobs)/m
+      reg_loss = sum([0.5*self.reg*np.sum(W*W) for W in network])
+      loss = data_loss + reg_loss 
+
+      # Compute the gradient of cross-entropy with respect to scores 
+      grad = cross_entropy_gradient(probs, y, m)
+
+      dWs = self.backpropagate(X, network, grad)
